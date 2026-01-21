@@ -5,11 +5,11 @@ import time
 import json
 import sqlite3
 import datetime
+import bcrypt # Import bcrypt directly for robust hashing
 
 # --- Import Authenticator ---
 try:
     import streamlit_authenticator as stauth
-    # Check version to handle breaking changes if necessary, but we will write code for the latest
 except ImportError:
     st.error("Library 'streamlit-authenticator' not found. Please add it to requirements.txt")
     st.stop()
@@ -102,7 +102,6 @@ def calculate_esg_score(env, soc, gov):
 # --- AUTHENTICATION SETUP ---
 credentials = get_all_users_for_authenticator()
 
-# ⚠️ FIXED: Updated for newer streamlit-authenticator versions
 authenticator = stauth.Authenticate(
     credentials,
     'greeninvest_cookie',
@@ -110,7 +109,7 @@ authenticator = stauth.Authenticate(
     cookie_expiry_days=30
 )
 
-# ⚠️ FIXED: Newer versions do NOT return a tuple. They update session_state directly.
+# Login handling
 authenticator.login(location='main')
 
 if st.session_state["authentication_status"]:
@@ -121,7 +120,6 @@ if st.session_state["authentication_status"]:
     st.session_state.user_id = get_user_id(username)
     st.session_state.name = name
     
-    # Logout button
     authenticator.logout('Logout', 'sidebar')
 
     st.header(f"🌿 GreenInvest Dashboard: {name}")
@@ -161,13 +159,16 @@ if st.session_state["authentication_status"]:
         st.sidebar.download_button("Download Template", get_csv(), "template.csv")
         up = st.sidebar.file_uploader("Upload CSV", type=['csv'])
         if up:
-            df = pd.read_csv(up)
-            get = lambda m: float(df.loc[df['metric']==m, 'value'].values[0])
-            env_d = {'energy': get('energy_consumption_kwh'), 'water': get('water_usage_m3'), 'waste': get('waste_generation_kg'), 'recycling': get('recycling_rate_pct')}
-            soc_d = {'turnover': get('employee_turnover_pct'), 'incidents': get('safety_incidents_count'), 'diversity': get('management_diversity_pct')}
-            gov_d = {'independence': get('board_independence_pct'), 'ethics': get('ethics_training_pct')}
-            if st.sidebar.button("Process CSV"):
-                calc_triggered = True
+            try:
+                df = pd.read_csv(up)
+                get = lambda m: float(df.loc[df['metric']==m, 'value'].values[0])
+                env_d = {'energy': get('energy_consumption_kwh'), 'water': get('water_usage_m3'), 'waste': get('waste_generation_kg'), 'recycling': get('recycling_rate_pct')}
+                soc_d = {'turnover': get('employee_turnover_pct'), 'incidents': get('safety_incidents_count'), 'diversity': get('management_diversity_pct')}
+                gov_d = {'independence': get('board_independence_pct'), 'ethics': get('ethics_training_pct')}
+                if st.sidebar.button("Process CSV"):
+                    calc_triggered = True
+            except Exception as e:
+                st.error(f"Error processing CSV: {e}")
 
     if calc_triggered:
         final, e, s, g = calculate_esg_score(env_d, soc_d, gov_d)
@@ -202,16 +203,18 @@ elif st.session_state["authentication_status"] is None:
             if st.form_submit_button("Register"):
                 if u and p and len(p) > 3:
                     try:
-                        # ⚠️ FIXED: Updated Hasher for latest version compatibility
-                        h = stauth.Hasher([p]).generate()[0]
-                    except:
-                        # Fallback just in case
-                        h = stauth.Hasher([p]).generate()
-                        if isinstance(h, list): h = h[0]
+                        # -----------------------------------------------
+                        # FIX: Use direct bcrypt hashing instead of Hasher
+                        # This avoids version conflicts in streamlit-authenticator
+                        # -----------------------------------------------
+                        hashed_bytes = bcrypt.hashpw(p.encode('utf-8'), bcrypt.gensalt())
+                        hashed_str = hashed_bytes.decode('utf-8')
                         
-                    if add_user(u, h, n):
-                        st.success("Registered! Login above.")
-                    else:
-                        st.error("Username taken.")
+                        if add_user(u, hashed_str, n):
+                            st.success("Registered! Please login above.")
+                        else:
+                            st.error("Username already taken.")
+                    except Exception as e:
+                        st.error(f"Error creating account: {e}")
                 else:
-                    st.error("Invalid details.")
+                    st.error("Invalid details (Password must be > 3 chars).")
