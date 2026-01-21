@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
+import plotly.express as px
 import time
 import json
 import sqlite3
@@ -16,53 +17,63 @@ except ImportError:
 
 # --- Page Configuration ---
 st.set_page_config(
-    page_title="GreenInvest Analytics",
-    page_icon="🌿",
+    page_title="GreenInvest Analytics Pro",
+    page_icon="🌍",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# --- Custom CSS ---
+# --- Custom CSS (Hero Banner & Cards) ---
 st.markdown("""
     <style>
-        /* Enhanced Banner Animation */
-        @keyframes slideDown {
-            from { opacity: 0; transform: translateY(-20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .welcome-banner {
-            animation: slideDown 0.8s ease-out;
-            background: linear-gradient(135deg, #2e7d32 0%, #66bb6a 100%);
+        /* HERO BANNER */
+        .hero-container {
+            background-image: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url('https://images.unsplash.com/photo-1473448912268-2022ce9509d8?q=80&w=2641&auto=format&fit=crop');
+            background-size: cover;
+            background-position: center;
+            padding: 4rem 2rem;
+            border-radius: 20px;
             color: white;
-            padding: 2rem;
-            border-radius: 15px;
             text-align: center;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            margin-bottom: 2rem;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
         }
-        .banner-title { font-size: 2.5rem; font-weight: bold; margin-bottom: 0.5rem; }
-        .banner-subtitle { font-size: 1.2rem; opacity: 0.9; }
+        .hero-title {
+            font-size: 3.5rem;
+            font-weight: 800;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        .hero-subtitle {
+            font-size: 1.5rem;
+            font-weight: 300;
+            opacity: 0.9;
+        }
 
-        /* General Styling */
-        .stApp { background-color: #f4f9f4; }
-        .metric-card {
-            background-color: white;
-            padding: 1.5rem;
+        /* METRIC CARDS */
+        div[data-testid="metric-container"] {
+            background-color: #ffffff;
+            border: 1px solid #f0f2f6;
+            padding: 20px;
             border-radius: 10px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            transition: transform 0.2s;
+        }
+        div[data-testid="metric-container"]:hover {
+            transform: translateY(-5px);
+            border-color: #4caf50;
         }
     </style>
 """, unsafe_allow_html=True)
 
 # --- DATABASE FUNCTIONS ---
-DATABASE_NAME = 'esg_data.db'
+DATABASE_NAME = 'esg_data_v2.db' # Changed name to avoid conflict with old schema
 
 def init_db():
     conn = sqlite3.connect(DATABASE_NAME)
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, name TEXT)''')
-    c.execute('''CREATE TABLE IF NOT EXISTS esg_history (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, timestamp TEXT NOT NULL, overall_score REAL, e_score REAL, s_score REAL, g_score REAL, env_data TEXT, social_data TEXT, gov_data TEXT, FOREIGN KEY (user_id) REFERENCES users (id))''')
+    c.execute('''CREATE TABLE IF NOT EXISTS esg_history (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, timestamp TEXT NOT NULL, overall_score REAL, e_score REAL, s_score REAL, g_score REAL, env_data TEXT, social_data TEXT, gov_data TEXT, industry TEXT, FOREIGN KEY (user_id) REFERENCES users (id))''')
     conn.commit()
     conn.close()
 
@@ -86,22 +97,22 @@ def get_user_id(username):
     conn.close()
     return res[0] if res else None
 
-def save_esg_history(user_id, timestamp, overall, e, s, g, env, soc, gov):
+def save_esg_history(user_id, timestamp, overall, e, s, g, env, soc, gov, industry):
     conn = sqlite3.connect(DATABASE_NAME)
     c = conn.cursor()
-    c.execute("INSERT INTO esg_history (user_id, timestamp, overall_score, e_score, s_score, g_score, env_data, social_data, gov_data) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-              (user_id, timestamp, overall, e, s, g, json.dumps(env), json.dumps(soc), json.dumps(gov)))
+    c.execute("INSERT INTO esg_history (user_id, timestamp, overall_score, e_score, s_score, g_score, env_data, social_data, gov_data, industry) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+              (user_id, timestamp, overall, e, s, g, json.dumps(env), json.dumps(soc), json.dumps(gov), industry))
     conn.commit()
     conn.close()
 
 def get_esg_history(user_id):
     conn = sqlite3.connect(DATABASE_NAME)
     c = conn.cursor()
-    c.execute("SELECT timestamp, overall_score, e_score, s_score, g_score, env_data, social_data, gov_data FROM esg_history WHERE user_id = ? ORDER BY timestamp ASC", (user_id,))
+    c.execute("SELECT timestamp, overall_score, e_score, s_score, g_score, env_data, social_data, gov_data, industry FROM esg_history WHERE user_id = ? ORDER BY timestamp ASC", (user_id,))
     data = c.fetchall()
     conn.close()
     return [{'timestamp': pd.to_datetime(r[0]), 'overall_score': r[1], 'e_score': r[2], 's_score': r[3], 'g_score': r[4], 
-             'env_data': json.loads(r[5]), 'social_data': json.loads(r[6]), 'gov_data': json.loads(r[7])} for r in data]
+             'env_data': json.loads(r[5]), 'social_data': json.loads(r[6]), 'gov_data': json.loads(r[7]), 'industry': r[8]} for r in data]
 
 def get_all_users_for_authenticator():
     conn = sqlite3.connect(DATABASE_NAME)
@@ -113,212 +124,204 @@ def get_all_users_for_authenticator():
 
 init_db()
 
-# --- CALCULATION LOGIC ---
-def calculate_esg_score(env, soc, gov):
-    # Weights
-    w_e, w_s, w_g = 0.4, 0.3, 0.3
-    
-    # Logic with explanation: Lower usage = Higher score
-    e_energy_score = max(0, 100 - (env['energy']/1000))
-    e_water_score = max(0, 100 - (env['water']/500))
-    e_waste_score = max(0, 100 - (env['waste']/100))
-    e_recycle_score = env['recycling'] # Direct percentage
-    
-    e = (e_energy_score + e_water_score + e_waste_score + e_recycle_score) / 4
+# --- ADVANCED CALCULATION LOGIC ---
+def calculate_esg_score(env, soc, gov, industry):
+    # Dynamic weights based on Industry
+    weights = {'E': 0.33, 'S': 0.33, 'G': 0.33}
+    if industry == "Manufacturing": weights = {'E': 0.5, 'S': 0.3, 'G': 0.2}
+    elif industry == "Technology": weights = {'E': 0.2, 'S': 0.4, 'G': 0.4}
+    elif industry == "Finance": weights = {'E': 0.1, 'S': 0.4, 'G': 0.5}
 
-    s_turnover_score = max(0, 100 - (soc['turnover']*2)) # Lower turnover is better
-    s_incidents_score = max(0, 100 - (soc['incidents']*10)) # Fewer incidents is better
-    s_diversity_score = soc['diversity'] # Higher is better
-    
-    s = (s_turnover_score + s_incidents_score + s_diversity_score) / 3
+    # --- Environmental Calculation (5 Metrics) ---
+    e1 = max(0, 100 - (env['energy'] / 1000))  # Energy (lower better)
+    e2 = max(0, 100 - (env['water'] / 500))    # Water (lower better)
+    e3 = env['recycling']                      # Recycling % (higher better)
+    e4 = min(100, env['renewable'] * 2)        # Renewable % (higher better)
+    e5 = min(100, env['offsets'] / 10)         # Carbon Offsets (higher better)
+    e_score = (e1 + e2 + e3 + e4 + e5) / 5
 
-    g_indep_score = gov['independence'] # Higher is better
-    g_ethics_score = gov['ethics'] # Higher is better
-    
-    g = (g_indep_score + g_ethics_score) / 2
-    
-    final = (e * w_e) + (s * w_s) + (g * w_g)
-    
-    # Return scores AND breakdown for explanation
-    details = {
-        "E": {"Energy": e_energy_score, "Water": e_water_score, "Waste": e_waste_score, "Recycling": e_recycle_score},
-        "S": {"Turnover": s_turnover_score, "Safety": s_incidents_score, "Diversity": s_diversity_score},
-        "G": {"Independence": g_indep_score, "Ethics": g_ethics_score}
-    }
-    
-    return final, e, s, g, details
+    # --- Social Calculation (5 Metrics) ---
+    s1 = max(0, 100 - (soc['turnover'] * 2))   # Turnover (lower better)
+    s2 = max(0, 100 - (soc['incidents'] * 10)) # Incidents (lower better)
+    s3 = soc['diversity']                      # Diversity % (higher better)
+    s4 = min(100, soc['training'] * 2)         # Training Hours (higher better)
+    s5 = min(100, soc['charity'] * 5)          # Charity % (higher better)
+    s_score = (s1 + s2 + s3 + s4 + s5) / 5
 
-# --- VISUALIZATION HELPERS ---
+    # --- Governance Calculation (5 Metrics) ---
+    g1 = gov['independence']                   # Board Indep % (higher better)
+    g2 = gov['ethics']                         # Ethics Training % (higher better)
+    g3 = 100 if gov['whistleblower'] else 0    # Whistleblower Policy (Binary)
+    g4 = 100 if gov['privacy'] else 0          # Data Privacy Policy (Binary)
+    g5 = 100 if gov['audits'] else 0           # Ext Audits (Binary)
+    g_score = (g1 + g2 + g3 + g4 + g5) / 5
+
+    final = (e_score * weights['E']) + (s_score * weights['S']) + (g_score * weights['G'])
+    return final, e_score, s_score, g_score
+
+# --- VISUALIZATION FUNCTIONS ---
 def create_gauge(value, title, color):
     fig = go.Figure(go.Indicator(
-        mode = "gauge+number",
-        value = value,
-        title = {'text': title},
+        mode = "gauge+number", value = value,
+        title = {'text': title, 'font': {'size': 24}},
         gauge = {
             'axis': {'range': [None, 100]},
             'bar': {'color': color},
             'steps': [
-                {'range': [0, 50], 'color': "#ffebee"},
-                {'range': [50, 80], 'color': "#fff3e0"},
-                {'range': [80, 100], 'color': "#e8f5e9"}],
+                {'range': [0, 50], 'color': "rgba(255, 0, 0, 0.1)"},
+                {'range': [50, 80], 'color': "rgba(255, 165, 0, 0.1)"},
+                {'range': [80, 100], 'color': "rgba(0, 255, 0, 0.1)"}],
+            'threshold': {'line': {'color': "black", 'width': 4}, 'thickness': 0.75, 'value': value}
         }
     ))
-    fig.update_layout(height=250, margin=dict(l=20, r=20, t=50, b=20))
+    fig.update_layout(height=250, margin=dict(l=20, r=20, t=50, b=20), paper_bgcolor='rgba(0,0,0,0)', font={'color': "black"})
     return fig
 
-# --- AUTHENTICATION SETUP ---
+def create_radar_chart(e, s, g):
+    df = pd.DataFrame(dict(
+        r=[e, s, g, e],
+        theta=['Environmental', 'Social', 'Governance', 'Environmental']
+    ))
+    fig = px.line_polar(df, r='r', theta='theta', line_close=True)
+    fig.update_traces(fill='toself', line_color='#2e7d32')
+    fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 100])), margin=dict(t=30, b=30))
+    return fig
+
+# --- AUTH & MAIN ---
 credentials = get_all_users_for_authenticator()
-
-authenticator = stauth.Authenticate(
-    credentials,
-    'greeninvest_cookie',
-    'random_secret_key_123',
-    cookie_expiry_days=30
-)
-
-# Login handling
+authenticator = stauth.Authenticate(credentials, 'green_cookie_pro', 'secure_key_v2', cookie_expiry_days=30)
 authenticator.login(location='main')
 
 if st.session_state["authentication_status"]:
-    # LOGGED IN
-    username = st.session_state["username"]
-    name = st.session_state["name"]
+    # Logged In Setup
+    username, name = st.session_state["username"], st.session_state["name"]
     st.session_state.user_id = get_user_id(username)
-    st.session_state.name = name
     authenticator.logout('Logout', 'sidebar')
 
-    # --- 1. ENHANCED WELCOME BANNER ---
+    # --- HERO SECTION ---
     st.markdown(f"""
-        <div class="welcome-banner">
-            <div class="banner-title">🌿 GreenInvest Analytics</div>
-            <div class="banner-subtitle">Welcome back, {name}! Let's measure your impact.</div>
+        <div class="hero-container">
+            <div class="hero-title">🌍 GreenInvest Analytics Pro</div>
+            <div class="hero-subtitle">Hello, {name}. Empowering your sustainable future with AI-driven insights.</div>
         </div>
     """, unsafe_allow_html=True)
 
-    # Input Selection
-    method = st.sidebar.radio("Input Method", ["Manual", "Upload CSV"])
+    # --- INPUT SECTION (5+ Options per category) ---
+    st.sidebar.header("🛠️ Data Input Panel")
+    industry = st.sidebar.selectbox("Select Industry", ["General", "Manufacturing", "Technology", "Finance"])
     
-    def get_csv():
-        d = {'metric': ['energy_consumption_kwh', 'water_usage_m3', 'waste_generation_kg', 'recycling_rate_pct', 'employee_turnover_pct', 'safety_incidents_count', 'management_diversity_pct', 'board_independence_pct', 'ethics_training_pct'],
-             'value': [50000, 2500, 1000, 40, 15, 3, 30, 50, 85]}
-        return pd.DataFrame(d).to_csv(index=False).encode('utf-8')
+    with st.sidebar.form("esg_input_form"):
+        # Environmental (5 Inputs)
+        with st.expander("🌳 Environmental Metrics (5 Options)", expanded=True):
+            e1 = st.number_input("Energy Usage (kWh)", value=50000)
+            e2 = st.number_input("Water Usage (m3)", value=2500)
+            e3 = st.slider("Recycling Rate (%)", 0, 100, 40)
+            e4 = st.slider("Renewable Energy Used (%)", 0, 100, 20)
+            e5 = st.number_input("Carbon Offsets Purchased (Tons)", value=10)
 
-    env_d, soc_d, gov_d = {}, {}, {}
-    calc_triggered = False
+        # Social (5 Inputs)
+        with st.expander("🤝 Social Metrics (5 Options)", expanded=False):
+            s1 = st.slider("Employee Turnover (%)", 0, 100, 15)
+            s2 = st.number_input("Safety Incidents", value=2)
+            s3 = st.slider("Leadership Diversity (%)", 0, 100, 35)
+            s4 = st.number_input("Avg Training Hours/Employee", value=20)
+            s5 = st.slider("Profit Donated to Charity (%)", 0, 20, 1)
 
-    if method == "Manual":
-        with st.sidebar.form("input_form"):
-            st.subheader("Environmental")
-            e1 = st.number_input("Energy (kWh)", 50000)
-            e2 = st.number_input("Water (m3)", 2500)
-            e3 = st.number_input("Waste (kg)", 1000)
-            e4 = st.slider("Recycling (%)", 0, 100, 40)
-            st.subheader("Social")
-            s1 = st.slider("Turnover (%)", 0, 100, 15)
-            s2 = st.number_input("Incidents", 0)
-            s3 = st.slider("Diversity (%)", 0, 100, 30)
-            st.subheader("Governance")
-            g1 = st.slider("Board Indep (%)", 0, 100, 50)
-            g2 = st.slider("Ethics Train (%)", 0, 100, 85)
-            if st.form_submit_button("Calculate Score"):
-                env_d = {'energy': e1, 'water': e2, 'waste': e3, 'recycling': e4}
-                soc_d = {'turnover': s1, 'incidents': s2, 'diversity': s3}
-                gov_d = {'independence': g1, 'ethics': g2}
-                calc_triggered = True
-    else:
-        st.sidebar.download_button("Download Template", get_csv(), "template.csv")
-        up = st.sidebar.file_uploader("Upload CSV", type=['csv'])
-        if up:
-            try:
-                df = pd.read_csv(up)
-                get = lambda m: float(df.loc[df['metric']==m, 'value'].values[0])
-                env_d = {'energy': get('energy_consumption_kwh'), 'water': get('water_usage_m3'), 'waste': get('waste_generation_kg'), 'recycling': get('recycling_rate_pct')}
-                soc_d = {'turnover': get('employee_turnover_pct'), 'incidents': get('safety_incidents_count'), 'diversity': get('management_diversity_pct')}
-                gov_d = {'independence': get('board_independence_pct'), 'ethics': get('ethics_training_pct')}
-                if st.sidebar.button("Process CSV"):
-                    calc_triggered = True
-            except Exception as e:
-                st.error(f"Error processing CSV: {e}")
+        # Governance (5 Inputs)
+        with st.expander("⚖️ Governance Metrics (5 Options)", expanded=False):
+            g1 = st.slider("Board Independence (%)", 0, 100, 60)
+            g2 = st.slider("Ethics Training Completion (%)", 0, 100, 90)
+            g3 = st.checkbox("Whistleblower Policy Active?", value=True)
+            g4 = st.checkbox("Data Privacy Protocol (GDPR/CCPA)?", value=True)
+            g5 = st.checkbox("External Audits Conducted?", value=True)
 
-    if calc_triggered:
-        final, e, s, g, details = calculate_esg_score(env_d, soc_d, gov_d)
-        save_esg_history(st.session_state.user_id, datetime.datetime.now().isoformat(), final, e, s, g, env_d, soc_d, gov_d)
+        calc_btn = st.form_submit_button("🚀 Calculate Analysis")
+
+    # --- MAIN DASHBOARD LOGIC ---
+    if calc_btn:
+        # Pack Data
+        env = {'energy':e1, 'water':e2, 'recycling':e3, 'renewable':e4, 'offsets':e5}
+        soc = {'turnover':s1, 'incidents':s2, 'diversity':s3, 'training':s4, 'charity':s5}
+        gov = {'independence':g1, 'ethics':g2, 'whistleblower':g3, 'privacy':g4, 'audits':g5}
         
-        # --- 2. GAUGE CHARTS (Visual Understanding) ---
-        st.subheader("📊 Score Dashboard")
+        # Calculate
+        final, e, s, g = calculate_esg_score(env, soc, gov, industry)
+        save_esg_history(st.session_state.user_id, datetime.datetime.now().isoformat(), final, e, s, g, env, soc, gov, industry)
+
+        # --- VISUALIZATION ROW 1: GAUGES ---
+        st.subheader(f"📊 Assessment Results ({industry} Standard)")
         col1, col2, col3, col4 = st.columns(4)
+        with col1: st.plotly_chart(create_gauge(final, "Overall Score", "#2E7D32"), use_container_width=True)
+        with col2: st.plotly_chart(create_gauge(e, "Environmental", "#4CAF50"), use_container_width=True)
+        with col3: st.plotly_chart(create_gauge(s, "Social", "#2196F3"), use_container_width=True)
+        with col4: st.plotly_chart(create_gauge(g, "Governance", "#FF9800"), use_container_width=True)
+
+        # --- VISUALIZATION ROW 2: RADAR & INSIGHTS ---
+        col_viz, col_txt = st.columns([1, 1])
         
-        with col1:
-            st.plotly_chart(create_gauge(final, "Overall ESG", "#1b5e20"), use_container_width=True)
-        with col2:
-            st.plotly_chart(create_gauge(e, "Environmental", "#4caf50"), use_container_width=True)
-        with col3:
-            st.plotly_chart(create_gauge(s, "Social", "#2196f3"), use_container_width=True)
-        with col4:
-            st.plotly_chart(create_gauge(g, "Governance", "#ff9800"), use_container_width=True)
+        with col_viz:
+            st.markdown("### 🕸️ Balance Radar")
+            st.plotly_chart(create_radar_chart(e, s, g), use_container_width=True)
 
-        # --- 3. EXPLAINER SECTION (Detailed Breakdown) ---
-        st.divider()
-        st.subheader("🔍 Why did I get this score?")
-        st.write("Here is the breakdown of how your inputs translated into scores (0-100 scale):")
+        with col_txt:
+            st.markdown("### 💡 Strategic Insights")
+            
+            # Smart Recommendations Logic
+            if e < 70:
+                st.warning(f"**Environmental Alert:** Your score ({e:.1f}) is low. Consider increasing renewable energy (currently {e4}%) or buying more offsets.")
+                
+
+[Image of wind turbines]
+
+            else:
+                st.success(f"**Environmental Strong:** Great job utilizing {e4}% renewable energy.")
+                
+            if s < 70:
+                st.warning(f"**Social Alert:** High turnover or low training ({s4} hrs). Invest in employee retention.")
+                
+
+[Image of team meeting]
+
+            else:
+                st.success("**Social Strong:** High diversity and safety standards detected.")
+                
+            if g < 70:
+                st.error("**Governance Critical:** Ensure policies like Whistleblower and Audits are active.")
+                
+
+[Image of legal document]
+
+            else:
+                st.info("**Governance Stable:** All major compliance protocols appear active.")
+
+    else:
+        # Default State (Instructions)
+        st.info("👈 Please enter your data in the sidebar and click **'Calculate Analysis'** to generate your report.")
         
-        exp_col1, exp_col2, exp_col3 = st.columns(3)
-        
-        with exp_col1:
-            st.info("**Environmental Factors**")
-            
-            for key, val in details['E'].items():
-                icon = "✅" if val > 70 else "⚠️" if val > 40 else "❌"
-                st.write(f"{icon} **{key}:** {val:.1f}")
-            st.caption("*Based on energy, water, and waste efficiency.*")
-
-        with exp_col2:
-            st.info("**Social Factors**")
-            
-            for key, val in details['S'].items():
-                icon = "✅" if val > 70 else "⚠️" if val > 40 else "❌"
-                st.write(f"{icon} **{key}:** {val:.1f}")
-            st.caption("*Based on turnover, safety, and diversity.*")
-
-        with exp_col3:
-            st.info("**Governance Factors**")
-            
-            for key, val in details['G'].items():
-                icon = "✅" if val > 70 else "⚠️" if val > 40 else "❌"
-                st.write(f"{icon} **{key}:** {val:.1f}")
-            st.caption("*Based on board independence and ethics.*")
-
-        # History Chart
+        # Show previous history if exists
         hist = get_esg_history(st.session_state.user_id)
         if hist:
             st.divider()
-            st.subheader("📈 Performance Trend")
+            st.subheader("🕰️ Historical Performance")
             hf = pd.DataFrame(hist)
-            fig = go.Figure(go.Scatter(x=hf['timestamp'], y=hf['overall_score'], mode='lines+markers', line=dict(color='#2e7d32', width=3)))
-            fig.update_layout(title="Your Improvement Over Time", height=300)
+            fig = px.area(hf, x='timestamp', y='overall_score', title="Your Sustainability Journey", color_discrete_sequence=['#4caf50'])
             st.plotly_chart(fig, use_container_width=True)
 
 elif st.session_state["authentication_status"] is False:
     st.error('Username/password is incorrect')
 elif st.session_state["authentication_status"] is None:
     st.warning('Please enter your username and password')
-    
     st.divider()
-    with st.expander("Register New Account"):
+    with st.expander("✨ Register New Account"):
         with st.form("reg"):
-            n = st.text_input("Name")
+            n = st.text_input("Full Name")
             u = st.text_input("Username")
             p = st.text_input("Password", type="password")
-            if st.form_submit_button("Register"):
-                if u and p and len(p) > 3:
+            if st.form_submit_button("Create Account"):
+                if len(p) > 3:
                     try:
-                        hashed_bytes = bcrypt.hashpw(p.encode('utf-8'), bcrypt.gensalt())
-                        hashed_str = hashed_bytes.decode('utf-8')
-                        if add_user(u, hashed_str, n):
-                            st.success("Registered! Please login above.")
-                        else:
-                            st.error("Username already taken.")
-                    except Exception as e:
-                        st.error(f"Error creating account: {e}")
-                else:
-                    st.error("Invalid details.")
+                        hashed = bcrypt.hashpw(p.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+                        if add_user(u, hashed, n): st.success("Created! Login above.")
+                        else: st.error("Username taken.")
+                    except Exception as e: st.error(str(e))
+                else: st.error("Password too short.")
