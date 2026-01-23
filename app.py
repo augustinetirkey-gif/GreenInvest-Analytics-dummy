@@ -25,93 +25,94 @@ except ImportError:
 
 # --- PAGE CONFIGURATION ---
 st.set_page_config(
-    page_title="GreenInvest",
-    page_icon="🌿",
+    page_title="GreenInvest Elite",
+    page_icon="🔥",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# --- ATTRACTIVE & READABLE STYLING ---
+# --- GAMER THEME CSS (FREE FIRE STYLE) ---
 st.markdown("""
     <style>
-        /* 1. BACKGROUND: Clean Professional White */
+        /* 1. BACKGROUND: Deep "Game Lobby" Gradient */
         .stApp {
-            background-color: #f8f9fa;
-            color: #212121;
+            background: linear-gradient(to right, #0f0c29, #302b63, #24243e);
+            color: #ffffff;
         }
 
-        /* 2. HEADERS: Clear & Bold */
-        h1, h2, h3 {
-            color: #1b5e20 !important; /* Forest Green */
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            font-weight: 700;
+        /* 2. TEXT VISIBILITY FIX - FORCE WHITE TEXT EVERYWHERE */
+        h1, h2, h3, h4, h5, h6, p, label, .stTextInput > label, .stNumberInput > label, .stSlider > label {
+            color: #ffffff !important;
+            font-family: 'Verdana', sans-serif;
+            text-shadow: 0px 2px 4px rgba(0,0,0,0.8);
+        }
+
+        /* 3. INPUT FIELDS - Dark Grey with White Text (High Contrast) */
+        .stTextInput input, .stNumberInput input {
+            background-color: #1e1e2f;
+            color: #00ffcc !important; /* Cyber Cyan Text */
+            border: 1px solid #FFD700; /* Gold Border */
+            border-radius: 5px;
         }
         
-        /* 3. CARDS: Floating White Boxes */
-        div[data-testid="metric-container"], [data-testid="stForm"], .css-1r6slb0 {
-            background-color: #ffffff;
-            border: 1px solid #e0e0e0;
-            border-radius: 15px;
-            padding: 25px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.05); /* Soft Shadow */
+        /* 4. BUTTONS - "Ranked Match" Style (Gold/Orange Gradient) */
+        div.stButton > button {
+            background: linear-gradient(45deg, #FFD700, #FF8C00);
+            color: black;
+            font-weight: bold;
+            border: none;
+            border-radius: 5px;
+            box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
+            transition: transform 0.2s;
+        }
+        div.stButton > button:hover {
+            transform: scale(1.05);
+            color: white;
         }
 
-        /* 4. METRICS: Big & Easy to Read */
+        /* 5. METRIC CARDS - HUD Style */
         [data-testid="stMetricValue"] {
             font-size: 3rem !important;
-            color: #2e7d32 !important;
             font-weight: 800;
+            color: #00ff00 !important; /* Neon Green Score */
+            text-shadow: 0 0 10px rgba(0, 255, 0, 0.6);
         }
         [data-testid="stMetricLabel"] {
-            color: #757575 !important;
-            font-size: 1.1rem;
-            font-weight: 500;
+            color: #FFD700 !important; /* Gold Label */
+            font-weight: bold;
+        }
+        div[data-testid="metric-container"] {
+            background-color: rgba(0, 0, 0, 0.6);
+            border: 1px solid #333;
+            border-left: 5px solid #FFD700;
+            padding: 15px;
+            border-radius: 10px;
         }
 
-        /* 5. BUTTONS: High Contrast */
-        button[kind="primary"] {
-            background-color: #2e7d32 !important;
-            color: white !important;
-            border-radius: 8px;
-            padding: 12px 24px;
-            font-size: 16px;
-            border: none;
-            transition: 0.3s;
-            box-shadow: 0 4px 6px rgba(46, 125, 50, 0.2);
-        }
-        button[kind="primary"]:hover {
-            background-color: #1b5e20 !important;
-            transform: translateY(-2px);
-        }
-        
-        /* 6. LOGOUT BUTTON: Distinct Red */
-        [data-testid="stSidebar"] button {
-            background-color: #ffebee !important;
-            color: #c62828 !important;
-            border: 1px solid #ef5350 !important;
+        /* 6. SIDEBAR - Dark Ops Style */
+        section[data-testid="stSidebar"] {
+            background-color: #121212;
+            border-right: 2px solid #FFD700;
         }
 
-        /* 7. TABS: Modern Navigation */
-        .stTabs [data-baseweb="tab-list"] {
-            gap: 20px;
-            border-bottom: 2px solid #eeeeee;
-        }
+        /* 7. TABS - Neon Selection */
         .stTabs [aria-selected="true"] {
-            background-color: #e8f5e9 !important;
-            color: #1b5e20 !important;
-            border-radius: 8px;
+            background-color: #FF8C00 !important;
+            color: white !important;
             font-weight: bold;
         }
         
-        /* 8. ALERTS: Soft Colors */
-        .stAlert {
-            border-radius: 10px;
+        /* 8. EXPANDERS - Glass Effect */
+        .streamlit-expanderHeader {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white !important;
+            border-radius: 5px;
         }
     </style>
 """, unsafe_allow_html=True)
 
 # --- DATABASE SETUP ---
-DB_FILE = 'esg_history_fix.db'
+DB_FILE = 'esg_elite.db'
 
 def init_db():
     conn = sqlite3.connect(DB_FILE)
@@ -159,8 +160,7 @@ def get_history(username):
     c.execute("SELECT timestamp, overall, e_score, s_score, g_score FROM history WHERE username = ? ORDER BY timestamp ASC", (username,))
     data = c.fetchall()
     conn.close()
-    # Renaming columns to be friendly
-    return pd.DataFrame(data, columns=['Date', 'Total Score', 'Planet (Env)', 'People (Soc)', 'Policy (Gov)'])
+    return pd.DataFrame(data, columns=['Date', 'Overall', 'Environmental', 'Social', 'Governance'])
 
 init_db()
 
@@ -169,7 +169,7 @@ if pdf_available:
     class PDF(FPDF):
         def header(self):
             self.set_font('Arial', 'B', 15)
-            self.cell(0, 10, 'GreenInvest Sustainability Report', 0, 1, 'C')
+            self.cell(0, 10, 'GreenInvest Elite Report', 0, 1, 'C')
             self.ln(5)
         def footer(self):
             self.set_y(-15)
@@ -180,24 +180,28 @@ if pdf_available:
         pdf = PDF()
         pdf.add_page()
         pdf.set_font("Arial", size=12)
-        pdf.cell(200, 10, txt=f"Prepared For: {name}", ln=True, align='L')
-        pdf.cell(200, 10, txt=f"Date: {datetime.datetime.now().strftime('%Y-%m-%d')}", ln=True, align='L')
+        pdf.cell(200, 10, txt=f"Player Name: {name}", ln=True, align='L')
+        pdf.cell(200, 10, txt=f"Mission Date: {datetime.datetime.now().strftime('%Y-%m-%d')}", ln=True, align='L')
         pdf.ln(10)
         
         pdf.set_font("Arial", 'B', 14)
-        pdf.cell(200, 10, txt="Score Summary", ln=True, align='L')
+        pdf.cell(200, 10, txt="Mission Stats (Scores)", ln=True, align='L')
         pdf.set_font("Arial", size=12)
-        pdf.cell(200, 10, txt=f"Total Score: {overall:.1f} / 100", ln=True)
-        pdf.cell(200, 10, txt=f"Planet (Env): {e:.1f}", ln=True)
-        pdf.cell(200, 10, txt=f"People (Soc): {s:.1f}", ln=True)
-        pdf.cell(200, 10, txt=f"Policy (Gov): {g:.1f}", ln=True)
+        pdf.cell(200, 10, txt=f"Total Rank: {overall:.1f} / 100", ln=True)
+        pdf.cell(200, 10, txt=f"Env Score: {e:.1f}", ln=True)
+        pdf.cell(200, 10, txt=f"Soc Score: {s:.1f}", ln=True)
+        pdf.cell(200, 10, txt=f"Gov Score: {g:.1f}", ln=True)
         pdf.ln(10)
         
+        pdf.set_font("Arial", 'B', 14)
+        pdf.cell(200, 10, txt="Inventory (Input Data)", ln=True, align='L')
+        pdf.set_font("Arial", size=10)
+        for key, value in inputs.items():
+            pdf.cell(200, 7, txt=f"{key}: {value}", ln=True)
         return pdf.output(dest='S').encode('latin-1')
 
 # --- CALCULATION ENGINE ---
 def calculate_scores(inputs):
-    # Parsing with defaults
     energy = float(inputs.get('energy', 50000))
     water = float(inputs.get('water', 2000))
     recycling = float(inputs.get('recycling', 40))
@@ -222,94 +226,92 @@ def calculate_scores(inputs):
 
 # --- AUTHENTICATION FLOW ---
 credentials = get_credentials()
-authenticator = stauth.Authenticate(credentials, 'green_cookie_insight', 'secure_key_insight', cookie_expiry_days=1)
+authenticator = stauth.Authenticate(credentials, 'green_cookie_elite', 'secure_key_elite', cookie_expiry_days=1)
 
 if 'authentication_status' not in st.session_state:
     st.session_state['authentication_status'] = None
 
-# --- LOGIN SCREEN ---
+# --- LOGIN SCREEN (GAME LOBBY STYLE) ---
 if not st.session_state['authentication_status']:
+    # Centered Logo
     col1, col2, col3 = st.columns([1,2,1])
     with col2:
         st.markdown("""
-            <div style='text-align: center; margin-bottom: 20px; background: white; padding: 40px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border-top: 5px solid #2e7d32;'>
-                <h1 style='color: #2e7d32; font-size: 50px; margin: 0;'>🌿</h1>
-                <h1 style='color: #2e7d32; margin-top: 0;'>GreenInvest</h1>
-                <p style='color: gray; margin-top: 10px; font-size: 18px;'>Your Sustainability Dashboard</p>
+            <div style='text-align: center; background: rgba(0,0,0,0.5); padding: 30px; border-radius: 20px; border: 2px solid #FFD700;'>
+                <h1 style='font-size: 60px; margin:0;'>🔥</h1>
+                <h1 style='color: #FFD700; margin-top:-10px; font-weight: 900; letter-spacing: 2px;'>GREEN ELITE</h1>
+                <p style='color: #00ffcc; font-size: 16px; font-weight: bold;'>PRESS START TO LOGIN</p>
             </div>
         """, unsafe_allow_html=True)
 
     authenticator.login(location='main')
 
     if st.session_state['authentication_status'] is False:
-        st.error('❌ Username/Password is incorrect.')
+        st.error('❌ ACCESS DENIED')
     elif st.session_state['authentication_status'] is None:
         st.markdown("<br>", unsafe_allow_html=True)
-        with st.expander("➕ Register New Account"):
+        with st.expander("➕ CREATE NEW PLAYER PROFILE"):
             with st.form("reg_form"):
-                new_name = st.text_input("Full Name")
-                new_user = st.text_input("Username")
-                new_pass = st.text_input("Password", type="password")
-                if st.form_submit_button("Create Account", type="primary"):
+                new_name = st.text_input("Codename (Name)")
+                new_user = st.text_input("UserID (Username)")
+                new_pass = st.text_input("Passcode (Password)", type="password")
+                if st.form_submit_button("REGISTER"):
                     if len(new_pass) > 3:
                         if register_user(new_user, new_name, new_pass):
-                            st.success("Success! You can now log in.")
+                            st.success("PROFILE CREATED! LOGIN ABOVE.")
                         else:
-                            st.error("Username already taken.")
+                            st.error("USER ID TAKEN.")
                     else:
-                        st.warning("Password too short.")
+                        st.warning("PASSCODE TOO SHORT.")
 
 # --- DASHBOARD (LOGGED IN) ---
 if st.session_state['authentication_status']:
     st.session_state.initial_sidebar_state = "expanded"
     username = st.session_state["username"]
     name = st.session_state["name"]
-    
-    # LOGOUT BUTTON (In Sidebar)
-    st.sidebar.markdown("### User Settings")
-    st.sidebar.write(f"Logged in as: **{name}**")
-    authenticator.logout('Sign Out', 'sidebar')
+    authenticator.logout('LOGOUT', 'sidebar')
 
     # HERO BANNER
     st.markdown(f"""
-        <div style="background: white; padding: 30px; border-radius: 15px; border-left: 8px solid #2e7d32; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 25px;">
-            <h1 style="margin:0; color: #1b5e20;">Hello, {name}</h1>
-            <p style="margin:0; color: #616161; font-size: 18px;">Here is your sustainability summary.</p>
+        <div style="background: linear-gradient(90deg, #FF8C00, #FFD700); padding: 20px; border-radius: 10px; text-align: center; color: black; box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);">
+            <h1 style="color: black !important; margin:0; text-shadow: none;">WELCOME, COMMANDER {name.upper()}</h1>
+            <h3 style="color: black !important; margin:0; font-weight: 300; text-shadow: none;">MISSION: SUSTAINABILITY OPTIMIZATION</h3>
         </div>
+        <br>
     """, unsafe_allow_html=True)
 
-    # SIDEBAR INPUTS
-    st.sidebar.header("📝 Enter Your Data")
-    input_method = st.sidebar.radio("How to add data?", ["Manual Entry", "Upload CSV File"])
+    # SIDEBAR
+    st.sidebar.header("🛠️ MISSION PARAMETERS")
+    input_method = st.sidebar.radio("SOURCE:", ["MANUAL ENTRY", "UPLOAD DATA"])
     
     inputs = {}
     calc_triggered = False
 
-    if input_method == "Manual Entry":
+    if input_method == "MANUAL ENTRY":
         with st.sidebar.form("manual_form"):
-            st.markdown("### 1. Planet (Environment)")
-            e1 = st.number_input("Energy Used (kWh)", 50000)
-            e2 = st.number_input("Water Used (m3)", 2000)
-            e3 = st.slider("Recycling Rate (%)", 0, 100, 40)
-            e4 = st.slider("Renewable Energy (%)", 0, 100, 20)
+            st.markdown("### 1. ENV STATS")
+            e1 = st.number_input("Energy", 50000)
+            e2 = st.number_input("Water", 2000)
+            e3 = st.slider("Recycling %", 0, 100, 40)
+            e4 = st.slider("Renewable %", 0, 100, 20)
             st.divider()
-            st.markdown("### 2. People (Social)")
-            s1 = st.slider("Employee Turnover (%)", 0, 100, 15)
-            s2 = st.number_input("Safety Incidents", 0)
-            s3 = st.slider("Diversity (%)", 0, 100, 30)
+            st.markdown("### 2. SOCIAL STATS")
+            s1 = st.slider("Turnover %", 0, 100, 15)
+            s2 = st.number_input("Incidents", 0)
+            s3 = st.slider("Diversity %", 0, 100, 30)
             st.divider()
-            st.markdown("### 3. Policy (Governance)")
-            g1 = st.slider("Board Independence (%)", 0, 100, 60)
-            g2 = st.slider("Ethics Compliance (%)", 0, 100, 95)
+            st.markdown("### 3. GOV STATS")
+            g1 = st.slider("Board Indep %", 0, 100, 60)
+            g2 = st.slider("Ethics %", 0, 100, 95)
             
-            if st.form_submit_button("Calculate My Score", type="primary"):
+            if st.form_submit_button("🔥 CALCULATE RANK", type="primary"):
                 inputs = {'energy':e1, 'water':e2, 'recycling':e3, 'renewable':e4, 'turnover':s1, 'incidents':s2, 'diversity':s3, 'board':g1, 'ethics':g2}
                 calc_triggered = True
     else:
         template = pd.DataFrame({'energy': [50000], 'water': [2000], 'recycling': [40], 'renewable': [20], 'turnover': [15], 'incidents': [0], 'diversity': [30], 'board': [60], 'ethics': [95]})
-        st.sidebar.download_button("Download Blank Template", template.to_csv(index=False), "esg_template.csv")
-        uploaded_file = st.sidebar.file_uploader("Upload CSV File", type=['csv'])
-        if uploaded_file and st.sidebar.button("Process My File", type="primary"):
+        st.sidebar.download_button("DOWNLOAD BLUEPRINT", template.to_csv(index=False), "esg_template.csv")
+        uploaded_file = st.sidebar.file_uploader("UPLOAD DATA", type=['csv'])
+        if uploaded_file and st.sidebar.button("PROCESS DATA"):
             try:
                 df = pd.read_csv(uploaded_file)
                 if 'metric' in df.columns and 'value' in df.columns:
@@ -321,7 +323,7 @@ if st.session_state['authentication_status']:
                     if parsed_inputs:
                         inputs = parsed_inputs
                         calc_triggered = True
-                        st.sidebar.success("File Read Successfully!")
+                        st.sidebar.success("DATA LOADED!")
                 else:
                     df.columns = df.columns.str.lower().str.strip()
                     inputs = df.iloc[0].to_dict()
@@ -329,119 +331,89 @@ if st.session_state['authentication_status']:
             except Exception as e:
                 st.error(f"Error: {e}")
 
-    # DASHBOARD LOGIC
+    # RESULTS DASHBOARD
     if calc_triggered:
         final, e, s, g = calculate_scores(inputs)
         save_data(username, final, e, s, g, inputs)
-        
-        # Determine Changes (Delta)
-        history = get_history(username)
-        delta_val = 0
-        if len(history) > 1:
-            # Compare current score with the previous entry
-            prev_score = history.iloc[-2]['Total Score']
-            delta_val = final - prev_score
 
         if pdf_available:
             col_pdf_dl, _ = st.columns([1, 4])
             with col_pdf_dl:
                 pdf_bytes = create_pdf(name, final, e, s, g, inputs)
-                st.download_button("📄 Download Report (PDF)", pdf_bytes, "ESG_Report.pdf", "application/pdf")
+                st.download_button("📄 EXPORT MISSION REPORT", pdf_bytes, "Mission_Report.pdf", "application/pdf")
 
-        # --- TABS ---
-        tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 My Score", "🚀 How to Improve", "📈 Past Scores", "🔍 View Data", "🔮 Simulator"])
+        tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 RANKING", "🎯 OBJECTIVES", "💰 REWARDS", "🕰️ HISTORY", "🧪 SIMULATOR"])
 
-        # TAB 1: SCORE
         with tab1:
-            st.subheader("Your Scorecard")
-            
+            st.subheader("CURRENT STATUS")
             c1, c2, c3, c4 = st.columns(4)
-            c1.metric("Total Score", f"{final:.1f}", delta=f"{delta_val:.1f} since last time")
-            c2.metric("Planet", f"{e:.1f}", help="Environment: Energy, Water, Waste")
-            c3.metric("People", f"{s:.1f}", help="Social: Safety, Turnover, Diversity")
-            c4.metric("Policy", f"{g:.1f}", help="Governance: Ethics, Board")
+            c1.metric("TOTAL RANK", f"{final:.1f}", delta="MAX: 100")
+            c2.metric("ENV", f"{e:.1f}")
+            c3.metric("SOC", f"{s:.1f}")
+            c4.metric("GOV", f"{g:.1f}")
             
             st.divider()
             
             col_left, col_right = st.columns(2)
             with col_left:
-                st.markdown("### 🌍 Impact Breakdown")
-                st.caption("Which resources are you using the most?")
-                co2_data = pd.DataFrame({'Source': ['Energy', 'Water'], 'Impact': [inputs.get('energy',0)*0.4, inputs.get('water',0)*0.1]})
-                fig_pie = px.pie(co2_data, values='Impact', names='Source', color_discrete_sequence=['#66bb6a', '#42a5f5'], hole=0.5)
+                st.markdown("### 🌍 EMISSION RADAR")
+                co2_data = pd.DataFrame({'Source': ['Energy', 'Water'], 'Emissions': [inputs.get('energy',0)*0.4, inputs.get('water',0)*0.1]})
+                fig_pie = px.pie(co2_data, values='Emissions', names='Source', color_discrete_sequence=['#FFD700', '#FF8C00'], hole=0.6)
+                fig_pie.update_layout(paper_bgcolor='rgba(0,0,0,0)', font_color="white")
                 st.plotly_chart(fig_pie, use_container_width=True)
             
             with col_right:
-                st.markdown("### ⚖️ Balance Check")
-                st.caption("Are you focusing too much on one area?")
-                df_radar = pd.DataFrame(dict(r=[e, s, g, e], theta=['Planet', 'People', 'Policy', 'Planet']))
+                st.markdown("### ⚖️ PERFORMANCE WEB")
+                df_radar = pd.DataFrame(dict(r=[e, s, g, e], theta=['ENV', 'SOC', 'GOV', 'ENV']))
                 fig_radar = px.line_polar(df_radar, r='r', theta='theta', line_close=True)
-                fig_radar.update_traces(fill='toself', line_color='#66bb6a')
-                fig_radar.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 100])))
+                fig_radar.update_traces(fill='toself', line_color='#00ff00')
+                fig_radar.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 100], color='white')), paper_bgcolor='rgba(0,0,0,0)', font_color="white")
                 st.plotly_chart(fig_radar, use_container_width=True)
 
-        # TAB 2: IMPROVEMENTS
         with tab2:
-            st.subheader("Simple Steps to Improve")
-            
-            col_act, col_fund = st.columns(2)
-            
-            with col_act:
-                st.markdown("#### 🛠️ Recommendations")
+            st.subheader("MISSION OBJECTIVES")
+            c_rec1, c_rec2 = st.columns(2)
+            with c_rec1:
+                st.markdown("#### ⚠️ CRITICAL TARGETS")
                 if e < 70: 
-                    st.error("Planet Score is Low")
-                    st.write("• **Tip:** Switch to LED lights to save energy.")
-                    st.write("• **Tip:** Fix water leaks.")
-                elif s < 70:
-                    st.warning("People Score is Low")
-                    st.write("• **Tip:** Increase safety training.")
-                else:
-                    st.success("You are doing great!")
-                    st.write("Maintain current standards.")
+                    st.error("LOW ENV SCORE DETECTED")
+                    st.write("• OBJECTIVE: Upgrade to LED Lights")
+                if s < 70:
+                    st.warning("LOW SOC SCORE DETECTED")
+                    st.write("• OBJECTIVE: Reduce Accidents")
+            with c_rec2:
+                st.markdown("#### ✅ COMPLETED")
+                if g > 70:
+                    st.success("GOVERNANCE OPTIMIZED")
 
-            with col_fund:
-                st.markdown("#### 💰 Financial Benefits")
-                with st.expander("🏦 Bank Loan Discount (0.5%)"):
-                    if final > 60: 
-                        st.success("✅ ELIGIBLE (Score > 60)")
-                    else: 
-                        st.error("❌ NOT ELIGIBLE yet")
-                
-                with st.expander("🌱 Government Grant ($50k)"):
-                    if e > 75: 
-                        st.success("✅ ELIGIBLE (Planet Score > 75)")
-                    else: 
-                        st.error("❌ NOT ELIGIBLE yet")
-
-        # TAB 3: HISTORY (FIXED)
         with tab3:
-            st.subheader("Your Progress")
-            st.caption("See how your scores have changed over time.")
+            st.subheader("UNLOCKABLE REWARDS")
+            col_fund1, col_fund2 = st.columns(2)
+            with col_fund1:
+                with st.expander("🏦 BANK LOAN BUFF", expanded=(final>60)):
+                    if final > 60: st.success("✅ UNLOCKED: 0.5% RATE DROP")
+                    else: st.error("🔒 LOCKED (REQ: LVL 60)")
+            with col_fund2:
+                with st.expander("🌱 GRANT DROP", expanded=(e>75)):
+                    if e > 75: st.success("✅ UNLOCKED: $50K SUPPLY DROP")
+                    else: st.error("🔒 LOCKED (REQ: ENV LVL 75)")
+
+        with tab4:
+            st.subheader("RANK HISTORY")
             hist = get_history(username)
             if not hist.empty:
-                # Use a Line Chart for clarity on multiple metrics
-                fig_line = px.line(hist, x='Date', y=['Total Score', 'Planet (Env)', 'People (Soc)', 'Policy (Gov)'],
-                                   title="Performance Trends", markers=True)
-                fig_line.update_layout(hovermode="x unified")
-                st.plotly_chart(fig_line, use_container_width=True)
+                fig_hist = px.area(hist, x='Date', y='Overall', title="RANK PROGRESSION", color_discrete_sequence=['#FFD700'])
+                fig_hist.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color="white")
+                st.plotly_chart(fig_hist, use_container_width=True)
             else:
-                st.info("No history found. Click 'Calculate My Score' to start tracking!")
+                st.write("NO BATTLE HISTORY FOUND.")
 
-        # TAB 4: RAW DATA
-        with tab4:
-            st.subheader("Your Input Data")
-            df_display = pd.DataFrame(list(inputs.items()), columns=['Item', 'Value'])
-            st.dataframe(df_display, use_container_width=True)
-
-        # TAB 5: SIMULATOR
         with tab5:
-            st.subheader("Test Changes")
-            st.caption("See what happens if you change your business inputs.")
-            
+            st.subheader("TACTICAL SIMULATION")
             col_sim1, col_sim2 = st.columns(2)
             with col_sim1:
-                sim_energy = st.slider("Energy Usage", 0, 100000, int(inputs.get('energy', 50000)))
-                sim_turnover = st.slider("Employee Turnover", 0, 100, int(inputs.get('turnover', 15)))
+                sim_energy = st.slider("Adjust Energy", 0, 100000, int(inputs.get('energy', 50000)))
+                sim_turnover = st.slider("Adjust Turnover", 0, 100, int(inputs.get('turnover', 15)))
             
             with col_sim2:
                 sim_e_raw = ((max(0, 100 - sim_energy/1000)) + (max(0, 100 - inputs.get('water',0)/500)) + inputs.get('recycling',0)) / 4
@@ -451,7 +423,7 @@ if st.session_state['authentication_status']:
                 
                 sim_final = (sim_e_score + sim_s_score + g) / 3
                 
-                st.metric("New Predicted Score", f"{sim_final:.1f}", delta=f"{sim_final - final:.1f}")
+                st.metric("PROJECTED RANK", f"{sim_final:.1f}", delta=f"{sim_final - final:.1f}")
 
     else:
-        st.info("👈 Please enter your data in the sidebar to generate your dashboard.")
+        st.info("👈 INITIATE SEQUENCE VIA SIDEBAR.")
