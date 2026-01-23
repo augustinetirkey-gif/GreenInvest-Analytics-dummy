@@ -47,7 +47,7 @@ st.markdown("""
             100% { background-position: 0% 50%; }
         }
 
-        /* 2. LOGIN CARD - GLASSMORPHISM */
+        /* 2. LOGIN CARD */
         [data-testid="stForm"] {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(15px);
@@ -59,45 +59,11 @@ st.markdown("""
             margin: auto;
         }
 
-        /* 3. METRIC CARDS */
-        div[data-testid="metric-container"] {
-            background-color: #ffffff;
-            border-radius: 15px;
-            padding: 20px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            color: #1b5e20;
-            border-left: 5px solid #43a047;
-        }
-
-        /* 4. HEADERS */
-        h1, h2, h3 {
-            color: #ffffff !important;
-            text-shadow: 0px 2px 4px rgba(0,0,0,0.4);
-        }
-        
-        /* 5. TABS */
-        .stTabs [data-baseweb="tab-list"] {
-            gap: 20px;
-            background-color: rgba(255,255,255,0.1);
-            padding: 10px 20px;
-            border-radius: 50px;
-        }
-        .stTabs [data-baseweb="tab"] {
-            height: 50px;
-            color: white;
-            font-weight: 600;
-        }
-        .stTabs [aria-selected="true"] {
-            background-color: #4caf50 !important;
-            color: white !important;
-            border-radius: 30px;
-        }
-
-        /* 6. SIDEBAR */
-        section[data-testid="stSidebar"] {
-            background-color: #f1f8e9;
-            box-shadow: 5px 0 15px rgba(0,0,0,0.1);
-        }
+        /* 3. HEADERS & TABS */
+        h1, h2, h3 { color: #ffffff !important; text-shadow: 0px 2px 4px rgba(0,0,0,0.4); }
+        .stTabs [data-baseweb="tab-list"] { gap: 20px; background-color: rgba(255,255,255,0.1); padding: 10px 20px; border-radius: 50px; }
+        .stTabs [data-baseweb="tab"] { height: 50px; color: white; font-weight: 600; }
+        .stTabs [aria-selected="true"] { background-color: #4caf50 !important; color: white !important; border-radius: 30px; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -181,16 +147,10 @@ if pdf_available:
         pdf.cell(200, 10, txt=f"Social: {s:.1f}", ln=True)
         pdf.cell(200, 10, txt=f"Governance: {g:.1f}", ln=True)
         pdf.ln(10)
-        pdf.set_font("Arial", 'B', 14)
-        pdf.cell(200, 10, txt="Input Data Breakdown", ln=True, align='L')
-        pdf.set_font("Arial", size=10)
-        for key, value in inputs.items():
-            pdf.cell(200, 7, txt=f"{key.capitalize()}: {value}", ln=True)
         return pdf.output(dest='S').encode('latin-1')
 
 # --- CALCULATION ENGINE ---
 def calculate_scores(inputs):
-    # Defaults and Parsing
     energy = float(inputs.get('energy', 50000))
     water = float(inputs.get('water', 2000))
     recycling = float(inputs.get('recycling', 40))
@@ -201,7 +161,6 @@ def calculate_scores(inputs):
     board = float(inputs.get('board', 60))
     ethics = float(inputs.get('ethics', 95))
 
-    # Logic
     e_raw = ((max(0, 100 - energy/1000)) + (max(0, 100 - water/500)) + (recycling) + (renewable * 1.5)) / 4
     e_score = min(100, max(0, e_raw))
 
@@ -221,7 +180,7 @@ def make_gauge(val, title, color):
         gauge={'axis': {'range': [None, 100]}, 'bar': {'color': color}, 'steps': [{'range': [0,50], 'color': 'white'}, {'range': [50,100], 'color': '#f1f8e9'}]}
     )).update_layout(height=250, margin=dict(l=10,r=10,t=40,b=10), paper_bgcolor='rgba(0,0,0,0)')
 
-# --- AUTHENTICATION FLOW ---
+# --- AUTHENTICATION FLOW (FIXED) ---
 credentials = get_credentials()
 authenticator = stauth.Authenticate(credentials, 'green_cookie_final', 'secure_key_final', cookie_expiry_days=1)
 
@@ -231,7 +190,7 @@ if 'authentication_status' not in st.session_state:
 
 # --- LOGIN SCREEN ---
 if not st.session_state['authentication_status']:
-    # Visual Header for Login
+    # Visual Header
     col1, col2, col3 = st.columns([1,2,1])
     with col2:
         st.markdown("""
@@ -242,9 +201,10 @@ if not st.session_state['authentication_status']:
             </div>
         """, unsafe_allow_html=True)
     
-    # Login Form
-    name, authentication_status, username = authenticator.login(location='main')
+    # 1. CALL LOGIN (WITHOUT UNPACKING)
+    authenticator.login(location='main')
 
+    # 2. CHECK STATUS MANUALLY
     if st.session_state['authentication_status'] is False:
         st.error('❌ Access Denied: Incorrect Username/Password')
     elif st.session_state['authentication_status'] is None:
@@ -266,8 +226,11 @@ if not st.session_state['authentication_status']:
 # --- DASHBOARD (LOGGED IN) ---
 if st.session_state['authentication_status']:
     st.session_state.initial_sidebar_state = "expanded"
+    
+    # 3. GET USER DATA FROM SESSION STATE
     username = st.session_state["username"]
     name = st.session_state["name"]
+    
     authenticator.logout('Logout', 'sidebar')
 
     # Hero Banner
@@ -310,7 +273,6 @@ if st.session_state['authentication_status']:
         if uploaded_file and st.sidebar.button("Process Data"):
             try:
                 df = pd.read_csv(uploaded_file)
-                # Smart Parser
                 if 'metric' in df.columns and 'value' in df.columns:
                     key_map = {'energy_consumption_kwh': 'energy', 'water_usage_m3': 'water', 'recycling_rate_pct': 'recycling', 'employee_turnover_pct': 'turnover', 'safety_incidents_count': 'incidents', 'management_diversity_pct': 'diversity', 'board_independence_pct': 'board', 'ethics_training_pct': 'ethics'}
                     parsed_inputs = {}
