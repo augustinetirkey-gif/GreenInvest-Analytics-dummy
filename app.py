@@ -6,6 +6,7 @@ import sqlite3
 import datetime
 import json
 import time
+import io
 
 # --- SAFETY CHECK: Imports ---
 try:
@@ -16,9 +17,16 @@ except ImportError as e:
     st.info("Please run: pip install streamlit-authenticator bcrypt")
     st.stop()
 
+# --- PDF LIBRARY CHECK ---
+try:
+    from fpdf import FPDF
+    pdf_available = True
+except ImportError:
+    pdf_available = False
+
 # --- PAGE CONFIGURATION ---
 st.set_page_config(
-    page_title="GreenInvest Visual",
+    page_title="GreenInvest Pro",
     page_icon="🌿",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -101,19 +109,73 @@ def get_history(username):
 
 init_db()
 
+# --- PDF GENERATOR CLASS ---
+if pdf_available:
+    class PDF(FPDF):
+        def header(self):
+            self.set_font('Arial', 'B', 15)
+            self.cell(0, 10, 'GreenInvest ESG Report', 0, 1, 'C')
+            self.ln(5)
+
+        def footer(self):
+            self.set_y(-15)
+            self.set_font('Arial', 'I', 8)
+            self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
+
+    def create_pdf(name, overall, e, s, g, inputs):
+        pdf = PDF()
+        pdf.add_page()
+        pdf.set_font("Arial", size=12)
+        
+        # Title Info
+        pdf.cell(200, 10, txt=f"Prepared for: {name}", ln=True, align='L')
+        pdf.cell(200, 10, txt=f"Date: {datetime.datetime.now().strftime('%Y-%m-%d')}", ln=True, align='L')
+        pdf.ln(10)
+        
+        # Scores
+        pdf.set_font("Arial", 'B', 14)
+        pdf.cell(200, 10, txt="Executive Summary", ln=True, align='L')
+        pdf.set_font("Arial", size=12)
+        pdf.cell(200, 10, txt=f"Overall ESG Score: {overall:.1f} / 100", ln=True)
+        pdf.cell(200, 10, txt=f"Environmental: {e:.1f}", ln=True)
+        pdf.cell(200, 10, txt=f"Social: {s:.1f}", ln=True)
+        pdf.cell(200, 10, txt=f"Governance: {g:.1f}", ln=True)
+        pdf.ln(10)
+
+        # Input Data Summary
+        pdf.set_font("Arial", 'B', 14)
+        pdf.cell(200, 10, txt="Input Data Breakdown", ln=True, align='L')
+        pdf.set_font("Arial", size=10)
+        for key, value in inputs.items():
+            pdf.cell(200, 7, txt=f"{key.capitalize()}: {value}", ln=True)
+        
+        return pdf.output(dest='S').encode('latin-1')
+
 # --- CALCULATION ENGINE ---
 def calculate_scores(inputs):
+    # Default values for missing keys (safe fallback)
+    energy = inputs.get('energy', 50000)
+    water = inputs.get('water', 2000)
+    recycling = inputs.get('recycling', 40)
+    renewable = inputs.get('renewable', 0) # Default to 0 if missing in CSV
+    
+    turnover = inputs.get('turnover', 15)
+    incidents = inputs.get('incidents', 0)
+    diversity = inputs.get('diversity', 30)
+    
+    board = inputs.get('board', 60)
+    ethics = inputs.get('ethics', 95)
+
     # 1. Environmental Logic
-    e_raw = ((max(0, 100 - inputs['energy']/1000)) + (max(0, 100 - inputs['water']/500)) + (inputs['recycling']) + (inputs['renewable'] * 1.5)) / 4
+    e_raw = ((max(0, 100 - energy/1000)) + (max(0, 100 - water/500)) + (recycling) + (renewable * 1.5)) / 4
     e_score = min(100, max(0, e_raw))
 
-    # 2. Social Logic (REMOVED: Charity, Training)
-    # Remaining inputs: Turnover, Incidents, Diversity
-    s_raw = ((max(0, 100 - inputs['turnover']*2)) + (max(0, 100 - inputs['incidents']*10)) + (inputs['diversity'])) / 3
+    # 2. Social Logic
+    s_raw = ((max(0, 100 - turnover*2)) + (max(0, 100 - incidents*10)) + (diversity)) / 3
     s_score = min(100, max(0, s_raw))
 
-    # 3. Governance Logic (Board + Ethics)
-    g_raw = (inputs['board'] + inputs['ethics']) / 2
+    # 3. Governance Logic
+    g_raw = (board + ethics) / 2
     g_score = min(100, max(0, g_raw))
 
     # Final Calculation
@@ -164,7 +226,6 @@ if st.session_state["authentication_status"]:
                 s1 = st.slider("Turnover Rate (%)", 0, 100, 15)
                 s2 = st.number_input("Safety Incidents", 0)
                 s3 = st.slider("Diversity (%)", 0, 100, 30)
-                # REMOVED: Training, Charity
             with st.expander("⚖️ Governance"):
                 g1 = st.slider("Board Independence (%)", 0, 100, 60)
                 g2 = st.slider("Ethics Compliance (%)", 0, 100, 95)
@@ -185,9 +246,44 @@ if st.session_state["authentication_status"]:
         if uploaded_file and st.sidebar.button("Process CSV"):
             try:
                 df = pd.read_csv(uploaded_file)
-                df.columns = df.columns.str.lower().str.strip()
-                inputs = df.iloc[0].to_dict()
-                calc_triggered = True
+                
+                # --- SMART PARSER FOR STACKED/LONG CSV ---
+                if 'metric' in df.columns and 'value' in df.columns:
+                    # Convert specific "Long" format to "Wide"
+                    # Mapping known CSV keys to app keys
+                    key_map = {
+                        'energy_consumption_kwh': 'energy',
+                        'water_usage_m3': 'water',
+                        'recycling_rate_pct': 'recycling',
+                        'employee_turnover_pct': 'turnover',
+                        'safety_incidents_count': 'incidents',
+                        'management_diversity_pct': 'diversity',
+                        'board_independence_pct': 'board',
+                        'ethics_training_pct': 'ethics'
+                        # 'renewable' is missing in your CSV, will default to 0
+                    }
+                    
+                    # Parse the first block of data found
+                    parsed_inputs = {}
+                    for _, row in df.iterrows():
+                        metric = str(row['metric']).strip()
+                        if metric in key_map:
+                            parsed_inputs[key_map[metric]] = row['value']
+                            
+                    # Ensure we have something
+                    if not parsed_inputs:
+                        st.error("Found metric column but no matching keys. Check CSV content.")
+                    else:
+                        inputs = parsed_inputs
+                        calc_triggered = True
+                        st.success("✅ Successfully read stacked CSV format!")
+
+                else:
+                    # Standard Wide Format
+                    df.columns = df.columns.str.lower().str.strip()
+                    inputs = df.iloc[0].to_dict()
+                    calc_triggered = True
+                    
             except Exception as e:
                 st.error(f"Error reading CSV: {e}")
 
@@ -195,6 +291,20 @@ if st.session_state["authentication_status"]:
     if calc_triggered:
         final, e, s, g = calculate_scores(inputs)
         save_data(username, final, e, s, g, inputs)
+
+        # PDF DOWNLOAD SECTION
+        if pdf_available:
+            col_pdf_dl, _ = st.columns([1, 4])
+            with col_pdf_dl:
+                pdf_bytes = create_pdf(name, final, e, s, g, inputs)
+                st.download_button(
+                    label="📄 Download PDF Report",
+                    data=pdf_bytes,
+                    file_name="ESG_Report.pdf",
+                    mime="application/pdf"
+                )
+        else:
+            st.warning("Install 'fpdf' (pip install fpdf) to enable PDF downloads.")
 
         # TABS
         tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 Performance Overview", "🎯 Recommendations", "💰 Finance Marketplace", "🕰️ Historical Trends", "🧪 Scenario Planner"])
@@ -219,12 +329,12 @@ if st.session_state["authentication_status"]:
             with col_left:
                 st.markdown("##### 🌍 Your Carbon Footprint breakdown")
                 st.write("Visualizing where your environmental impact comes from.")
-                # Trigger image for educational purpose
-                # 
                 
                 # Mock CO2 Calculation for Visualization
-                co2_energy = inputs['energy'] * 0.4
-                co2_water = inputs['water'] * 0.1
+                en_val = inputs.get('energy', 0)
+                wa_val = inputs.get('water', 0)
+                co2_energy = en_val * 0.4
+                co2_water = wa_val * 0.1
                 co2_data = pd.DataFrame({
                     'Source': ['Energy Consumption', 'Water Usage'],
                     'Emissions (kg CO2)': [co2_energy, co2_water]
@@ -236,8 +346,6 @@ if st.session_state["authentication_status"]:
             with col_right:
                 st.markdown("##### ⚖️ ESG Balance Radar")
                 st.write("See which pillar is dragging down your score.")
-                # Trigger image for concept
-                # 
                 
                 df_radar = pd.DataFrame(dict(
                     r=[e, s, g, e],
@@ -325,15 +433,26 @@ if st.session_state["authentication_status"]:
             
             c_sim1, c_sim2 = st.columns(2)
             with c_sim1:
-                sim_energy = st.slider("Simulate Energy Reduction (kWh)", 0, 100000, int(inputs['energy']))
-                sim_turnover = st.slider("Simulate Turnover (%)", 0, 100, int(inputs['turnover']))
+                # Safe fallback for simulation sliders
+                safe_energy = int(inputs.get('energy', 50000))
+                safe_turnover = int(inputs.get('turnover', 15))
+                
+                sim_energy = st.slider("Simulate Energy Reduction (kWh)", 0, 100000, safe_energy)
+                sim_turnover = st.slider("Simulate Turnover (%)", 0, 100, safe_turnover)
             
             with c_sim2:
                 # Real-time calculation for simulation
-                sim_e_raw = ((max(0, 100 - sim_energy/1000)) + (max(0, 100 - inputs['water']/500)) + (inputs['recycling']) + (inputs['renewable'] * 1.5)) / 4
+                # Ensure we have values for calc
+                w_val = inputs.get('water', 2000)
+                r_val = inputs.get('recycling', 40)
+                re_val = inputs.get('renewable', 0)
+                i_val = inputs.get('incidents', 0)
+                d_val = inputs.get('diversity', 30)
+
+                sim_e_raw = ((max(0, 100 - sim_energy/1000)) + (max(0, 100 - w_val/500)) + (r_val) + (re_val * 1.5)) / 4
                 sim_e_score = min(100, max(0, sim_e_raw))
                 
-                sim_s_raw = ((max(0, 100 - sim_turnover*2)) + (max(0, 100 - inputs['incidents']*10)) + (inputs['diversity'])) / 3
+                sim_s_raw = ((max(0, 100 - sim_turnover*2)) + (max(0, 100 - i_val*10)) + (d_val)) / 3
                 sim_s_score = min(100, max(0, sim_s_raw))
                 
                 sim_final = (sim_e_score + sim_s_score + g) / 3
