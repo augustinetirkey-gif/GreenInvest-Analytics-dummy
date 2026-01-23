@@ -304,7 +304,7 @@ if st.session_state['authentication_status']:
 
     # SIDEBAR CONFIGURATION
     st.sidebar.title(f"👤 {name}")
-   "
+   st.sidebar.caption("Senior Analyst")
     st.sidebar.divider()
     
     st.sidebar.header("🛠️ Data Configuration")
