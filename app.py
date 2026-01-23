@@ -31,74 +31,71 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- CYBER-PROFESSIONAL THEME (High Visibility Update) ---
+# --- SIMPLE & HIGH CONTRAST THEME ---
 st.markdown("""
     <style>
-        /* 1. BACKGROUND: Professional Dark Mode */
+        /* 1. BACKGROUND: Dark Professional */
         .stApp {
             background: linear-gradient(135deg, #0b0e11 0%, #151b26 100%);
             color: #e0e0e0;
         }
 
-        /* 2. TEXT VISIBILITY */
-        h1, h2, h3, h4 { color: #ffffff !important; font-family: 'Segoe UI', sans-serif; }
-        p, label, .stMarkdown { color: #b0b3b8 !important; }
+        /* 2. TEXT - Easy to Read */
+        h1, h2, h3 { color: #ffffff !important; font-family: sans-serif; }
+        p, label, .stMarkdown { color: #cfd8dc !important; font-size: 1.1rem; }
 
-        /* 3. BUTTONS - HIGH CONTRAST FIX */
-        /* Primary Buttons (Process Data, Calculate) - NEON GREEN with BLACK Text */
+        /* 3. BUTTONS - Clear & Visible */
+        /* Green Button for "Go" Actions */
         button[kind="primary"] {
             background: #00E676 !important;
             color: #000000 !important;
-            font-weight: 800 !important;
+            font-size: 18px !important;
+            font-weight: bold !important;
             border: none;
-            box-shadow: 0 0 10px rgba(0, 230, 118, 0.4);
+            padding: 10px 20px;
         }
         
-        /* Secondary Buttons (Logout, Download) - WHITE/GREY High Contrast */
+        /* Red/White Button for "Stop/Logout" Actions */
         button[kind="secondary"] {
             background: #ffffff !important;
             color: #000000 !important;
-            border: 1px solid #ccc;
-        }
-        /* Specific Fix for Sidebar Logout if needed */
-        [data-testid="stSidebar"] button {
-             background-color: #ff5252 !important; /* Red for Logout */
-             color: white !important;
+            border: 2px solid #ccc;
         }
 
-        /* 4. CARDS (Metrics & Login) */
+        /* 4. CARDS - Boxes for Data */
         div[data-testid="metric-container"], [data-testid="stForm"] {
-            background: rgba(30, 35, 45, 0.9);
-            border: 1px solid rgba(0, 255, 136, 0.2);
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-            border-radius: 12px;
+            background: rgba(30, 35, 45, 0.95);
+            border: 1px solid #4CAF50;
+            border-radius: 15px;
             padding: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
         }
 
-        /* 5. METRIC VALUES */
+        /* 5. BIG NUMBERS */
         [data-testid="stMetricValue"] {
-            font-size: 2.2rem !important;
-            font-weight: 700;
-            color: #00ff88 !important;
+            font-size: 2.5rem !important;
+            font-weight: 800;
+            color: #00E676 !important; /* Bright Green */
         }
         
-        /* 6. TABS */
+        /* 6. TABS - Simple Buttons */
         .stTabs [data-baseweb="tab-list"] {
-            gap: 8px;
-            background-color: rgba(255,255,255,0.05);
-            padding: 10px;
-            border-radius: 10px;
+            gap: 15px;
+            background-color: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 15px;
         }
         .stTabs [aria-selected="true"] {
-            background-color: #00ff88 !important;
+            background-color: #00E676 !important;
             color: black !important;
-            border-radius: 5px;
+            font-weight: bold;
+            border-radius: 10px;
         }
     </style>
 """, unsafe_allow_html=True)
 
 # --- DATABASE SETUP ---
-DB_FILE = 'esg_cyber_v2.db'
+DB_FILE = 'esg_simple_v1.db'
 
 def init_db():
     conn = sqlite3.connect(DB_FILE)
@@ -171,12 +168,12 @@ if pdf_available:
         pdf.ln(10)
         
         pdf.set_font("Arial", 'B', 14)
-        pdf.cell(200, 10, txt="Executive Summary", ln=True, align='L')
+        pdf.cell(200, 10, txt="Score Summary", ln=True, align='L')
         pdf.set_font("Arial", size=12)
-        pdf.cell(200, 10, txt=f"Overall ESG Score: {overall:.1f} / 100", ln=True)
-        pdf.cell(200, 10, txt=f"Environmental: {e:.1f}", ln=True)
-        pdf.cell(200, 10, txt=f"Social: {s:.1f}", ln=True)
-        pdf.cell(200, 10, txt=f"Governance: {g:.1f}", ln=True)
+        pdf.cell(200, 10, txt=f"Total Score: {overall:.1f} / 100", ln=True)
+        pdf.cell(200, 10, txt=f"Env Score: {e:.1f}", ln=True)
+        pdf.cell(200, 10, txt=f"Soc Score: {s:.1f}", ln=True)
+        pdf.cell(200, 10, txt=f"Gov Score: {g:.1f}", ln=True)
         pdf.ln(10)
         
         pdf.set_font("Arial", 'B', 14)
@@ -213,7 +210,7 @@ def calculate_scores(inputs):
 
 # --- AUTHENTICATION FLOW ---
 credentials = get_credentials()
-authenticator = stauth.Authenticate(credentials, 'green_cookie_cyber_v2', 'secure_key_cyber_v2', cookie_expiry_days=1)
+authenticator = stauth.Authenticate(credentials, 'green_cookie_simple', 'secure_key_simple', cookie_expiry_days=1)
 
 if 'authentication_status' not in st.session_state:
     st.session_state['authentication_status'] = None
@@ -226,7 +223,7 @@ if not st.session_state['authentication_status']:
             <div style='text-align: center; margin-bottom: 30px;'>
                 <h1 style='font-size: 80px; margin-bottom:0;'>🌿</h1>
                 <h1 style='margin-top:-10px; letter-spacing: 2px;'>GreenInvest</h1>
-                <p style='color: #00ff88; font-size: 16px;'>Secure Sustainability Login</p>
+                <p style='color: #00ff88; font-size: 16px;'>Secure Login</p>
             </div>
         """, unsafe_allow_html=True)
 
@@ -256,9 +253,9 @@ if st.session_state['authentication_status']:
     username = st.session_state["username"]
     name = st.session_state["name"]
     
-    # Force high-contrast Logout Button in Sidebar
-    st.sidebar.markdown("### User Controls")
-    authenticator.logout('Sign Out / Logout', 'sidebar')
+    # VISIBLE LOGOUT BUTTON
+    st.sidebar.markdown("### User Settings")
+    authenticator.logout('Log Out', 'sidebar')
 
     # HERO BANNER
     st.markdown(f"""
@@ -331,105 +328,105 @@ if st.session_state['authentication_status']:
                 pdf_bytes = create_pdf(name, final, e, s, g, inputs)
                 st.download_button("📄 Download Report (PDF)", pdf_bytes, "ESG_Report.pdf", "application/pdf")
 
-        # --- RENAMED AND REORGANIZED TABS ---
-        tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 Executive Summary", "🚀 Action Roadmap", "📈 Trends & History", "🔍 Deep Dive", "🔮 Impact Simulator"])
+        # --- RENAMED TABS FOR CLARITY ---
+        tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 My Score", "🚀 How to Improve", "📈 Past Scores", "🔍 View Data", "🔮 Test Changes"])
 
-        # TAB 1: EXECUTIVE SUMMARY (Visuals)
+        # TAB 1: SCORE OVERVIEW
         with tab1:
-            st.subheader("High-Level Performance")
-            st.caption("A quick snapshot of your current sustainability standing.")
+            st.subheader("Your Current Score")
+            st.caption("This is your main report card. Higher numbers are better.")
             
             c1, c2, c3, c4 = st.columns(4)
-            c1.metric("Overall Score", f"{final:.1f}", delta="Target: 100", help="Weighted average of all 3 pillars.")
-            c2.metric("Environmental", f"{e:.1f}", delta_color="normal", help="Measures resource efficiency.")
-            c3.metric("Social", f"{s:.1f}", delta_color="normal", help="Measures workforce health.")
-            c4.metric("Governance", f"{g:.1f}", delta_color="normal", help="Measures ethical leadership.")
+            c1.metric("Total Score", f"{final:.1f}", delta="Goal: 100", help="This is the average of all 3 categories.")
+            c2.metric("Environment", f"{e:.1f}", delta_color="normal", help="How green is your company?")
+            c3.metric("Social", f"{s:.1f}", delta_color="normal", help="How happy are your employees?")
+            c4.metric("Governance", f"{g:.1f}", delta_color="normal", help="How well is the company managed?")
             
             st.divider()
             
             col_left, col_right = st.columns(2)
             with col_left:
-                st.markdown("### 🌍 Carbon Emission Analysis")
-                st.caption("Visualizing the sources of your environmental footprint.")
+                st.markdown("### 🌍 Pollution Sources")
+                st.caption("Where is your environmental impact coming from? (Energy vs Water)")
                 co2_data = pd.DataFrame({'Source': ['Energy', 'Water'], 'Emissions': [inputs.get('energy',0)*0.4, inputs.get('water',0)*0.1]})
                 fig_pie = px.pie(co2_data, values='Emissions', names='Source', color_discrete_sequence=['#00e676', '#2979ff'], hole=0.6)
                 fig_pie.update_layout(paper_bgcolor='rgba(0,0,0,0)', font_color="white")
                 st.plotly_chart(fig_pie, use_container_width=True)
             
             with col_right:
-                st.markdown("### ⚖️ Metric Radar")
-                st.caption("Identifying balanced growth across sectors.")
-                df_radar = pd.DataFrame(dict(r=[e, s, g, e], theta=['Environmental', 'Social', 'Governance', 'Environmental']))
+                st.markdown("### ⚖️ Score Balance")
+                st.caption("A perfect score would look like a large triangle filling the chart.")
+                df_radar = pd.DataFrame(dict(r=[e, s, g, e], theta=['Environment', 'Social', 'Governance', 'Environment']))
                 fig_radar = px.line_polar(df_radar, r='r', theta='theta', line_close=True)
                 fig_radar.update_traces(fill='toself', line_color='#00e676')
                 fig_radar.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 100], color='white')), paper_bgcolor='rgba(0,0,0,0)', font_color="white")
                 st.plotly_chart(fig_radar, use_container_width=True)
 
-        # TAB 2: ACTION ROADMAP (Recommendations + Funding)
+        # TAB 2: IMPROVEMENTS
         with tab2:
-            st.subheader("Strategic Next Steps")
-            st.caption("Prioritized actions to improve your score and financial incentives you can claim now.")
+            st.subheader("What should you do next?")
+            st.caption("Simple steps to get a higher score.")
             
             col_act, col_fund = st.columns(2)
             
             with col_act:
-                st.markdown("#### 🛠️ Improvement Plan")
+                st.markdown("#### 🛠️ Things to Fix")
                 if e < 70: 
-                    st.error("Priority: Environmental Upgrade")
-                    st.write("• **Issue:** High energy/water usage detected.")
-                    st.write("• **Fix:** Upgrade to LED lighting (ROI: 12 months).")
+                    st.error("Low Environment Score")
+                    st.write("• **Tip:** Buy LED lights to save energy.")
+                    st.write("• **Tip:** Check for water leaks.")
                 elif s < 70:
-                    st.warning("Priority: Workforce Stability")
-                    st.write("• **Issue:** Turnover or safety incidents are dragging score.")
-                    st.write("• **Fix:** Implement quarterly safety audits.")
+                    st.warning("Low Social Score")
+                    st.write("• **Tip:** Talk to employees about safety.")
+                    st.write("• **Tip:** Reduce work hours to lower turnover.")
                 else:
-                    st.success("✅ Systems Optimal")
-                    st.write("Continue monitoring current metrics.")
+                    st.success("Everything looks good!")
+                    st.write("Keep doing what you are doing.")
 
             with col_fund:
-                st.markdown("#### 💰 Financial Incentives")
-                with st.expander("🏦 Green Loan Program (0.5% Discount)", expanded=(final>60)):
+                st.markdown("#### 💰 Money You Can Claim")
+                with st.expander("🏦 Bank Loan Discount (0.5%)", expanded=(final>60)):
                     if final > 60: 
-                        st.success("✅ ELIGIBLE")
-                        st.write("Your score > 60 qualifies you for reduced interest rates.")
+                        st.success("✅ AVAILABLE")
+                        st.write("You can apply for a cheaper loan now.")
                     else: 
-                        st.error("❌ INELIGIBLE (Req: Score > 60)")
+                        st.error("❌ NOT AVAILABLE (Need Total Score > 60)")
                 
-                with st.expander("🌱 EPA Sustainability Grant ($50k)", expanded=(e>75)):
+                with st.expander("🌱 Government Cash Grant ($50k)", expanded=(e>75)):
                     if e > 75: 
-                        st.success("✅ ELIGIBLE")
-                        st.write("Your high Environmental score unlocks direct funding.")
+                        st.success("✅ AVAILABLE")
+                        st.write("You can apply for free grant money.")
                     else: 
-                        st.error("❌ INELIGIBLE (Req: Env > 75)")
+                        st.error("❌ NOT AVAILABLE (Need Env Score > 75)")
 
-        # TAB 3: TRENDS
+        # TAB 3: HISTORY
         with tab3:
-            st.subheader("Performance History")
-            st.caption("Tracking your progress over time.")
+            st.subheader("Your Past Scores")
+            st.caption("See if you are getting better or worse over time.")
             hist = get_history(username)
             if not hist.empty:
                 fig_hist = px.area(hist, x='Date', y='Overall', title="Score History", color_discrete_sequence=['#00e676'])
                 fig_hist.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color="white")
                 st.plotly_chart(fig_hist, use_container_width=True)
             else:
-                st.info("No history available yet. Save more calculations to see trends.")
+                st.info("No history yet. Calculate your score a few times to see a graph here.")
 
-        # TAB 4: DEEP DIVE (Raw Data)
+        # TAB 4: RAW DATA
         with tab4:
-            st.subheader("Input Data Verification")
-            st.caption("Review the raw data used for this calculation.")
-            df_display = pd.DataFrame(list(inputs.items()), columns=['Metric', 'Value'])
+            st.subheader("Check Your Inputs")
+            st.caption("These are the exact numbers you entered.")
+            df_display = pd.DataFrame(list(inputs.items()), columns=['Metric Name', 'Value'])
             st.dataframe(df_display, use_container_width=True)
 
         # TAB 5: SIMULATOR
         with tab5:
-            st.subheader("What-If Simulator")
-            st.caption("Adjust sliders to see how changes affect your score (Data is NOT saved).")
+            st.subheader("Test Your Changes")
+            st.caption("Move the sliders to see what happens if you change your business.")
             
             col_sim1, col_sim2 = st.columns(2)
             with col_sim1:
-                sim_energy = st.slider("Adjust Energy Input", 0, 100000, int(inputs.get('energy', 50000)))
-                sim_turnover = st.slider("Adjust Turnover Rate", 0, 100, int(inputs.get('turnover', 15)))
+                sim_energy = st.slider("Energy Usage (Lower is better)", 0, 100000, int(inputs.get('energy', 50000)))
+                sim_turnover = st.slider("Employee Turnover (Lower is better)", 0, 100, int(inputs.get('turnover', 15)))
             
             with col_sim2:
                 sim_e_raw = ((max(0, 100 - sim_energy/1000)) + (max(0, 100 - inputs.get('water',0)/500)) + inputs.get('recycling',0)) / 4
@@ -439,7 +436,7 @@ if st.session_state['authentication_status']:
                 
                 sim_final = (sim_e_score + sim_s_score + g) / 3
                 
-                st.metric("Projected New Score", f"{sim_final:.1f}", delta=f"{sim_final - final:.1f}")
+                st.metric("New Predicted Score", f"{sim_final:.1f}", delta=f"{sim_final - final:.1f}")
 
     else:
         st.info("👈 Please enter data in the sidebar to view your dashboard.")
